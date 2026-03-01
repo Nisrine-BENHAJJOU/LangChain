@@ -1,23 +1,31 @@
+from typing import List
+from pydantic import BaseModel, Field
+
 from dotenv import load_dotenv
+load_dotenv()
+
 from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 from langchain.tools import tool
 from langchain_core.messages import HumanMessage
 from langchain_groq import ChatGroq
-from tavily import TavilyClient
+from langchain_ollama import ChatOllama
+from langchain_tavily import TavilySearch
 
-tavily = TavilyClient()
+class Source(BaseModel):
+    """Schema for a source used by the agent"""
 
-load_dotenv()
+    url:str = Field(description="The URl of the source")
 
-@tool
-def search(query: str) -> str:
-    """Tool that searches over the internet"""
-    print(f"Searching for: {query}")
-    return tavily.search(query=query)
+class AgentResponse(BaseModel):
+    """Schema for agent response with answer and sources"""
 
-llm = ChatGroq(model="qwen/qwen3-32b")
-tools = [search]
-agent = create_agent(model=llm, tools=tools)
+    answer: str = Field(description="The agent's answer to the query")
+    sources: List[Source] = Field(default_factory=list, description="List of sources used by the agent to answer the query")
+
+llm = ChatOllama(model="qwen3:8b")
+tools = [TavilySearch()]
+agent = create_agent(model=llm, tools=tools, response_format=ToolStrategy(AgentResponse))
 
 def main():
     print("Hello from langchain-course!")
